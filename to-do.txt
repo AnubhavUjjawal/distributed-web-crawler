@@ -1,0 +1,17 @@
+initialize with the url to fetch
+fetch url
+extract hyperlinks
+distribute urls to distributed systems
+each system has its own queue.
+filter urls [blacklisted ones to be removed]
+remove duplicate url
+maintain url priority queues in disk. [Mongodb] 
+maintain visited url priority queues in disk. [hash the url to a 10 byte value] [Mongodb] global for all workers
+
+later:
+    distributed system
+    maintain DNS cache 
+    shared corpus directory over a network
+    authenticated mongodb server
+    politeness policy
+    robots.txt
