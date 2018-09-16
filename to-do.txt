@@ -7,6 +7,7 @@ filter urls [blacklisted ones to be removed]
 remove duplicate url
 maintain url priority queues in disk. [Mongodb] 
 maintain visited url priority queues in disk. [hash the url to a 10 byte value] [Mongodb] global for all workers
+    maintain with in-degree, out-degree, links_from
 
 later:
     distributed system

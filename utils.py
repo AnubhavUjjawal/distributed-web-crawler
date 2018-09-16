@@ -1,31 +1,6 @@
 import os, requests, itertools, re
 from bs4 import BeautifulSoup
 
-class Pages:
-    """
-        A Web Page data structure.
-    """
-    _link = ""
-    _indegree = 1
-
-    def __init__(self, link, indegree):
-        self._link = link
-    
-    def get_link(self):
-        return self._link
-    
-    def increment_indegree(self):
-        self._indegree += 1
-    
-    def get_indegree(self):
-        return self._indegree
-
-    # to be implemented
-    def get_outdegree(self):
-        return None
-
-
-
 class Crawl_Frontier:
     """
         Crawl Frontier for maintaing the list of urls to visit.
@@ -80,7 +55,6 @@ class Crawler:
         if a.startswith("../"):
             path = a.split("../")
             back = path.count("")
-            # print(back)
             return "/".join(url.split("/")[:-1*(back+1)] + path[back:])
         return a
 
