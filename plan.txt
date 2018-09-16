@@ -1,0 +1,1 @@
+Crawler is the master, responsible for distributing work to the crawl frontiers.

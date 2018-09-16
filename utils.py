@@ -9,30 +9,11 @@ class Crawl_Frontier:
     """
     urls_to_visit = list()
 
-    def __init__(self, urls_to_visit):
+    def __init__(self, urls_to_visit=[]):
         pass
     
     def add_to_visit(self, urls_to_visit):
         pass   
-    
-    def return_links(self):
-        pass
-
-class Crawler:
-    # initial list of websites to visit
-    _seeds = list()
-    _mongodb_server_link = ""
-    _corpus_dir = ""
-    _workers = 1
-
-    def __init__(self, seeds, mongodb_server_link, corpus_dir="./corpus", workers=1):
-        # Each seed must have a priority value of 10
-        self._seeds = seeds
-        self._mongodb_server_link = mongodb_server_link
-        self._corpus_dir = corpus_dir
-        if not os.path.exists(corpus_dir):
-            os.makedirs(corpus_dir)
-        self._workers = workers
     
     def parse_get(self, url):
         res = requests.get(url)
@@ -64,9 +45,27 @@ class Crawler:
     def print_list(self, items):
         print("\n".join(items))
 
+
+class Crawler:
+    # initial list of websites to visit
+    _seeds = list()
+    _mongodb_server_link = ""
+    _corpus_dir = ""
+    _workers = 1
+
+    def __init__(self, seeds, mongodb_server_link, corpus_dir="./corpus", workers=1):
+        # Each seed must have a priority value of 10
+        self._seeds = seeds
+        self._mongodb_server_link = mongodb_server_link
+        self._corpus_dir = corpus_dir
+        if not os.path.exists(corpus_dir):
+            os.makedirs(corpus_dir)
+        self._workers = workers
+
     def crawl(self):
-        returned_docs = list(map(lambda url: self.parse_get(url), self._seeds))
-        links_set = set(itertools.chain.from_iterable(list(map(lambda doc: self.extract_anchor_links(doc), returned_docs))))
-        self.print_list(links_set)
+        pass
+        # returned_docs = list(map(lambda url: self.parse_get(url), self._seeds))
+        # links_set = set(itertools.chain.from_iterable(list(map(lambda doc: self.extract_anchor_links(doc), returned_docs))))
+        # self.print_list(links_set)
         
 

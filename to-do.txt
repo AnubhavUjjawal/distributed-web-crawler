@@ -10,6 +10,7 @@ maintain visited url priority queues in disk. [hash the url to a 10 byte value] 
     maintain with in-degree, out-degree, links_from
 
 later:
+    caching
     distributed system
     maintain DNS cache 
     shared corpus directory over a network
