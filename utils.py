@@ -1,11 +1,13 @@
-import os, requests, itertools, re
+import os, requests, itertools, rpyc
 from bs4 import BeautifulSoup
+from pprint import pprint
+from pymongo import MongoClient
 
 class Crawl_Frontier:
     """
-        Crawl Frontier for maintaing the list of urls to visit.
+        Crawl Frontier for visiting urls.
         Uses MongoDB to maintain priority queues.
-        It is a worker used to crawl the systems
+        It is a worker used to crawl the urls
     """
     urls_to_visit = list()
 
@@ -29,6 +31,13 @@ class Crawl_Frontier:
             a =  "".join((a, "/"))
         if not url.endswith("/"):
             url =  "".join((url, "/"))
+        
+        """
+        To convert into valid urls-
+            Case 1. //av.wikipedia.org/
+            Case 2. /static/
+            Case 3. ../../static/
+        """
         if a.startswith("//"):
             return "".join(["http:", a])
         if a.startswith("/"):
@@ -40,6 +49,7 @@ class Crawl_Frontier:
         return a
 
     def extract_anchor_links(self, doc):
+        # implement filtering a by class or id here
         return list(map(lambda a: self.get_valid_link(a.get("href"), doc["url"]), doc["content"].find_all('a')))
 
     def print_list(self, items):
@@ -47,25 +57,82 @@ class Crawl_Frontier:
 
 
 class Crawler:
+    """
+        Master. Invokes the workers(crawl frontiers), distributes urls to them.
+    """
     # initial list of websites to visit
     _seeds = list()
-    _mongodb_server_link = ""
+    _mongodb_server_url = ""
+    _mongodb_user = ""
+    _mongodb_password = ""
     _corpus_dir = ""
-    _workers = 1
+    # _workers is the list of (addr, port) tuples which will be addressed by rpyc.
+    _workers = list()
 
-    def __init__(self, seeds, mongodb_server_link, corpus_dir="./corpus", workers=1):
-        # Each seed must have a priority value of 10
+    def __init__(self, seeds, mongodb_server_url, corpus_dir="./corpus", workers=[]):
+        # Each seed have a default priority value of 10
         self._seeds = seeds
-        self._mongodb_server_link = mongodb_server_link
+        self._mongodb_server_url = mongodb_server_url
         self._corpus_dir = corpus_dir
         if not os.path.exists(corpus_dir):
             os.makedirs(corpus_dir)
         self._workers = workers
+        
+    def check_workers(self):
+        unable_to_connect = list()
+        for worker in self._workers:
+            # ping each worker for availability here
+            try:
+                rpyc.classic.connect(worker[0], port=worker[1])
+            except Exception:
+                # print(e)
+                unable_to_connect.append(worker)
+        return unable_to_connect
+
+    def create_db_connect_url(self):
+        if self._mongodb_user is "" or self._mongodb_password is "":
+            return self._mongodb_server_url
+        username_pass_join = ":".join([self._mongodb_user, self._mongodb_password])
+        mongodb, url = self._mongodb_server_url.split("//")
+        url_with_auth = "//".join([mongodb, "@".join([username_pass_join, url])])
+        return url_with_auth
+
+    def set_username_password(self, mongo_user, mongo_pass):
+        self._mongodb_user = mongo_user
+        self._mongodb_password = mongo_pass
+        url_with_auth = self.create_db_connect_url()
+        client = MongoClient(url_with_auth)
+        db = client.admin
+        serverStatusResult = db.command("serverStatus")
+        client.close()
+        return serverStatusResult
+
+    def get_to_be_visited(self):
+        url_with_auth = self.create_db_connect_url()
+        client = MongoClient(url_with_auth)
+        db = client.toBeVisited
+        toBeVisited = list(db.pagesInfo.find())
+        client.close()
+        return toBeVisited
 
     def crawl(self):
-        pass
+        # start with seeds add them to db of to be visited.
+        url_with_auth = self.create_db_connect_url()
+        client = MongoClient(url_with_auth)
+        db = client.toBeVisited
+        for seed in self._seeds:
+            if db.pagesInfo.find_one({"url": seed}) is  None:
+                db.pagesInfo.insert_one({
+                    "url": seed,
+                    "inDegree": 0,
+                    "outDegree": 0,
+                    "seed": True,
+                    "priority": 10
+                })
+        client.close()
+
         # returned_docs = list(map(lambda url: self.parse_get(url), self._seeds))
         # links_set = set(itertools.chain.from_iterable(list(map(lambda doc: self.extract_anchor_links(doc), returned_docs))))
         # self.print_list(links_set)
-        
+
 
