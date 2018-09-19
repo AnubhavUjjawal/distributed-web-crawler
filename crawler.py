@@ -110,6 +110,8 @@ class Crawler:
     def get_to_be_visited(self):
         url_with_auth = self.create_db_connect_url()
         client = MongoClient(url_with_auth)
+        
+        # this collection in mongoDB contains all the links to be visited
         db = client.toBeVisited
         toBeVisited = list(db.pagesInfo.find())
         client.close()

@@ -1,5 +1,5 @@
 import os, unittest, subprocess, signal
-from utils import Crawler, Crawl_Frontier
+from crawler import Crawler, Crawl_Frontier
 from pymongo import MongoClient
 from pprint import pprint
 
