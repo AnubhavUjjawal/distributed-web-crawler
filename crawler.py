@@ -3,58 +3,14 @@ from bs4 import BeautifulSoup
 from pprint import pprint
 from pymongo import MongoClient
 
-class Crawl_Frontier:
-    """
-        Crawl Frontier for visiting urls.
-        Uses MongoDB to maintain priority queues.
-        It is a worker used to crawl the urls
-    """
-    urls_to_visit = list()
-
-    def __init__(self, urls_to_visit=[]):
+def equal_weights_url_priority_policy(urls):
+        # this method assigns equal weights to each url i.e, 10
         pass
-    
-    def add_to_visit(self, urls_to_visit):
-        pass   
-    
-    def parse_get(self, url):
-        res = requests.get(url)
-        return {
-            "content": BeautifulSoup(res.text, "html.parser"),
-            "url": url
-        }
 
-    def get_valid_link(self, a, url):
-        # url is the url of webpage from which a link is obtained
-        # make sure a and url has / in the end
-        if not a.endswith("/"):
-            a =  "".join((a, "/"))
-        if not url.endswith("/"):
-            url =  "".join((url, "/"))
-        
-        """
-        To convert into valid urls-
-            Case 1. //av.wikipedia.org/
-            Case 2. /static/
-            Case 3. ../../static/
-        """
-        if a.startswith("//"):
-            return "".join(["http:", a])
-        if a.startswith("/"):
-            return url + a[1:]
-        if a.startswith("../"):
-            path = a.split("../")
-            back = path.count("")
-            return "/".join(url.split("/")[:-1*(back+1)] + path[back:])
-        return a
-
-    def extract_anchor_links(self, doc):
-        # implement filtering a by class or id here
-        return list(map(lambda a: self.get_valid_link(a.get("href"), doc["url"]), doc["content"].find_all('a')))
-
-    def print_list(self, items):
-        print("\n".join(items))
-
+def simple_distribution_policy(a, n):
+        # a is the array, n is the number of chunks in which the array is to be divided
+        k, m = divmod(len(a), n)
+        return list(a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
 class Crawler:
     """
@@ -66,28 +22,15 @@ class Crawler:
     _mongodb_user = ""
     _mongodb_password = ""
     _corpus_dir = ""
-    # _workers is the list of (addr, port) tuples which will be addressed by rpyc.
-    _workers = list()
 
-    def __init__(self, seeds, mongodb_server_url, corpus_dir="./corpus", workers=[]):
+    def __init__(self, seeds, mongodb_server_url, corpus_dir="./corpus"):
+        # workers can be found on runnning rpyc.discover("FRONTIER")
         # Each seed have a default priority value of 10
         self._seeds = seeds
         self._mongodb_server_url = mongodb_server_url
         self._corpus_dir = corpus_dir
         if not os.path.exists(corpus_dir):
             os.makedirs(corpus_dir)
-        self._workers = workers
-        
-    def check_workers(self):
-        unable_to_connect = list()
-        for worker in self._workers:
-            # ping each worker for availability here
-            try:
-                rpyc.classic.connect(worker[0], port=worker[1])
-            except Exception:
-                # print(e)
-                unable_to_connect.append(worker)
-        return unable_to_connect
 
     def create_db_connect_url(self):
         if self._mongodb_user is "" or self._mongodb_password is "":
@@ -107,17 +50,34 @@ class Crawler:
         client.close()
         return serverStatusResult
 
-    def get_to_be_visited(self):
+    def get_to_be_visited(self, limit=0):
         url_with_auth = self.create_db_connect_url()
         client = MongoClient(url_with_auth)
         
         # this collection in mongoDB contains all the links to be visited
+        # return the urls on the basis of their priority
         db = client.toBeVisited
-        toBeVisited = list(db.pagesInfo.find())
+        toBeVisited = list(db.pagesInfo.find().sort([("url", 1), ("priority", 1)]).limit(limit))
         client.close()
         return toBeVisited
 
-    def crawl(self):
+    def get_workers(self):
+        # discovers and returns the tuple of (addr, port) values of workers
+        return rpyc.discover("FRONTIER")
+    
+    def distribute_urls_to_workers(self, distribution_policy):
+        workers = self.get_workers()
+        to_be_visited = self.get_to_be_visited()
+        chunkified_to_be_visited = distribution_policy(to_be_visited, workers.__len__())
+        pprint(chunkified_to_be_visited)
+
+    def start_workers(self):
+        # call get_workers to get all active workers
+        # distribute each seed url randomly to active reachable workers.
+        workers = self.get_workers()
+        return workers
+
+    def crawl(self, distribution_policy=simple_distribution_policy, url_priority_policy=equal_weights_url_priority_policy):
         # start with seeds add them to db of to be visited.
         url_with_auth = self.create_db_connect_url()
         client = MongoClient(url_with_auth)
@@ -132,6 +92,10 @@ class Crawler:
                     "priority": 10
                 })
         client.close()
+        self.distribute_urls_to_workers(distribution_policy=distribution_policy)
+        self.start_workers()
+        # we have to check if worker is alive or not every N seconds.
+        # keep alive is in rpyc_registry.py
 
         # returned_docs = list(map(lambda url: self.parse_get(url), self._seeds))
         # links_set = set(itertools.chain.from_iterable(list(map(lambda doc: self.extract_anchor_links(doc), returned_docs))))

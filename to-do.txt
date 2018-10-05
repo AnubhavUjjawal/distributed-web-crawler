@@ -17,3 +17,8 @@ later:
     authenticated mongodb server
     politeness policy
     robots.txt
+
+how to start:
+    run python rpyc_registry.py [start the registry server for workers to register themselves to]
+    run python frontier.py on the worker computers
+    run tests.py

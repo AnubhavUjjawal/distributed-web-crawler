@@ -1,21 +1,18 @@
-import os, unittest, subprocess, signal
-from crawler import Crawler, Crawl_Frontier
+import os, unittest, subprocess, rpyc
+from crawler import Crawler
+from frontier import Crawl_Frontier
 from pymongo import MongoClient
 from pprint import pprint
 
+# At least a worker on 1 ((addr, port),) is to be run during testing
+
 class TestCrawler(unittest.TestCase):
     @classmethod
-    def setUpClass(self):               
+    def setUpClass(self):   
         self.crawler = Crawler(
             seeds=["https://www.google.com", "https://www.wikipedia.org"],
             mongodb_server_url="mongodb://localhost:27017", 
-            corpus_dir="./corpus",
-            workers=[
-                ("localhost", "8000"),
-                ("localhost", "8001"),
-                ("localhost", "8002"),
-                ("localhost", "56477"), #this entry is for checking test_workers() returns error because no rpyc is running on this (host, port) pair value
-            ])
+            corpus_dir="./corpus")
         self.crawl_frontier = Crawl_Frontier()
         self.crawler.set_username_password("root", "qazwsxedc")
 
@@ -27,15 +24,17 @@ class TestCrawler(unittest.TestCase):
         self.assertEqual(self.crawl_frontier.get_valid_link("//pi.wikipedia.org/", "http://www.x.com/images/"), "http://pi.wikipedia.org/" )
         self.assertEqual(self.crawl_frontier.get_valid_link("//pi.wikipedia.org", "http://www.x.com/images/"), "http://pi.wikipedia.org/" )
 
+    # def test_distribute_urls_to_workers(self):
+
     def test_get_to_be_visited(self):
         self.crawler.crawl()
         self.assertGreaterEqual(len(self.crawler.get_to_be_visited()), 2)
         # pprint(self.crawler.get_to_be_visited())
 
-    def test_workers(self):
-        # make sure rpyc is running on localhost on ports 8000, 8001, 8002
-        self.assertEqual(self.crawler.check_workers(), [("localhost", "56477"),])
-        
+    def test_start_workers(self):
+        workers_list = self.crawler.start_workers()
+        self.assertGreaterEqual(workers_list.__len__(), 1)
+
 if __name__ == '__main__':
     unittest.main()
     
